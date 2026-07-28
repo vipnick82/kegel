@@ -35,11 +35,22 @@
   h1{font-size:28px;margin:6px 0 4px;letter-spacing:-.5px}
   .sub{color:var(--dim);font-size:14px;margin:0 0 18px}
 
-  .stats{display:flex;gap:8px;margin-bottom:20px}
+  .stats{display:flex;gap:8px;margin-bottom:14px}
   .stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;
     padding:12px 10px;text-align:center}
   .stat b{display:block;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
   .stat span{font-size:11px;color:var(--dim);letter-spacing:.3px}
+
+  /* покана за следващото ниво */
+  .unlock{border-radius:16px;padding:16px 17px;margin-bottom:16px;position:relative;overflow:hidden}
+  .unlock .tag{font-size:10.5px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase}
+  .unlock h4{margin:6px 0 6px;font-size:16.5px}
+  .unlock p{margin:0 0 13px;font-size:13px;line-height:1.55;color:#c9cfda}
+  .unlock .row{display:flex;gap:8px}
+  .unlock button{border:0;border-radius:11px;padding:11px 15px;font-size:13.5px;
+    font-weight:700;cursor:pointer;font-family:inherit}
+  .unlock .go{flex:1;color:#0b0d11}
+  .unlock .later{background:rgba(255,255,255,.07);color:#c9cfda}
 
   .lvl{display:block;width:100%;text-align:left;border:1px solid var(--line);
     background:var(--card);color:var(--txt);border-radius:18px;padding:18px 52px 18px 18px;
@@ -72,13 +83,6 @@
     display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--dim)}
   .step .t{flex:1;min-width:0}
   .step .t b{display:block;font-size:14.5px;font-weight:600}
-
-  .tiers{display:flex;gap:8px;margin-top:6px}
-  .tier{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;
-    padding:13px 6px;font-size:13px;font-weight:700;color:var(--dim);cursor:pointer;
-    font-family:inherit;transition:.15s}
-  .tier:active{transform:scale(.97)}
-  .tier.on{color:#0b0d11;border-color:transparent}
 
   /* ---------- плеър ---------- */
   #player{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;
@@ -170,6 +174,7 @@
     <h1>Kegel Trainer</h1>
     <p class="sub">Тренировка на тазовото дъно. Избери ниво за днес.</p>
     <div class="stats" id="stats"></div>
+    <div id="unlock"></div>
     <div id="levels"></div>
   </section>
 
@@ -181,8 +186,6 @@
     <button class="startBtn" id="startBtn" onclick="startSession()">СТАРТ</button>
     <p class="planHead">Дневна програма</p>
     <div id="planList"></div>
-    <p class="planHead" style="margin-top:22px">Интензивност</p>
-    <div class="tiers" id="tiers"></div>
   </section>
 </div>
 
@@ -247,59 +250,54 @@
 /* ================= ДАННИ =================
    c = свий навътре, h = задръж свиването,
    x = натисни навън (обратен кегел), xh = задръж натиска навън,
-   r = отпусни. Продължителността на отпускането НЕ е фиксирана - тя се
-   изчислява от напрежението в същия цикъл, защото възстановяването трябва
-   да е поне равно на усилието. Иначе повторение 4 и 5 се правят с корема.  */
+   r = отпусни. Отпускането НЕ е фиксирано - изчислява се от напрежението в
+   същия цикъл, защото възстановяването трябва да е поне равно на усилието.
+
+   Кривата на натоварване: максималното задържане расте 5 -> 10 -> 15 сек.
+   5 сек е реална задача за начинаещ, без да е мъчение.
+   10 сек е класическата цел в протоколите за тазово дъно.
+   15 сек е таванът - над него почти всеки започва да задържа дъх, което
+   обезсмисля упражнението.                                                 */
 const P={ c:(d)=>({t:'c',d}), h:(d)=>({t:'h',d}), r:()=>({t:'r',d:0}),
           x:(d)=>({t:'x',d}), xh:(d)=>({t:'xh',d}) };
 const RED='#ef4444', GREEN='#22c55e', BLUE='#38bdf8', VIOLET='#a78bfa';
 const COLOR={c:RED,h:RED,x:VIOLET,xh:VIOLET,r:GREEN,prep:BLUE,xrest:BLUE};
 
-const MAX_HOLD=15;   /* над 15 сек почти всеки започва да задържа дъх */
 const MAX_REC=25;
-const BREATHE_FROM=8;/* от колко секунди задържане да се показва подсказката */
-
-/* Интензивността удължава задържанията. Възстановяването остава вързано за
-   напрежението - при по-висока степен пада само леко (1.0 -> 0.9 -> 0.8),
-   никога под 4:5. Повторенията се преизчисляват за същото чисто време. */
-const TIERS=[
-  {id:1,name:'Лека',   color:'#22c55e', hold:1.0,  rec:1.0},
-  {id:2,name:'Средна', color:'#f59e0b', hold:1.35, rec:0.9},
-  {id:3,name:'Висока', color:'#ef4444', hold:1.7,  rec:0.8},
-];
+const BREATHE_FROM=8;
 
 const LEVELS=[
- {id:1,name:'Начинаещ',color:'#22c55e',work:240,goal:[14,21],
+ {id:1,name:'Начинаещ',color:'#22c55e',work:240,goal:[14,21],hold:5,
   desc:'Учиш се да намираш и контролираш мускула. Кратки свивания, дълги почивки.',
   ex:[
-   {name:'Загрявка',        cycle:[P.c(3),P.r()], warm:true, w:0.35, restAfter:20},
-   {name:'Основно свиване', cycle:[P.c(3),P.r()],            w:0.9,  restAfter:25},
-   {name:'Бързи импулси',   cycle:[P.c(1),P.r()], fast:true, w:0.6,  restAfter:30},
-   {name:'Кратко задържане',cycle:[P.c(2),P.h(3),P.r()],     w:1.1,  restAfter:35},
-   {name:'Контрол с дишане',cycle:[P.c(4),P.h(2),P.r()],     w:1.1,  restAfter:35},
-   {name:'Обратен кегел',   cycle:[P.x(3),P.xh(3),P.r()],    w:0.7},
+   {name:'Загрявка',        cycle:[P.c(3),P.r()],           w:0.35, restAfter:20},
+   {name:'Основно свиване', cycle:[P.c(4),P.r()],           w:0.9,  restAfter:25},
+   {name:'Бързи импулси',   cycle:[P.c(1),P.r()], fast:true,w:0.6,  restAfter:30},
+   {name:'Кратко задържане',cycle:[P.c(2),P.h(4),P.r()],    w:1.1,  restAfter:35},
+   {name:'Контрол с дишане',cycle:[P.c(3),P.h(5),P.r()],    w:1.1,  restAfter:35},
+   {name:'Обратен кегел',   cycle:[P.x(3),P.xh(4),P.r()],   w:0.7},
   ]},
- {id:2,name:'Напреднал',color:'#f59e0b',work:360,goal:[28,42],
+ {id:2,name:'Напреднал',color:'#f59e0b',work:360,goal:[28,42],hold:10,
   desc:'По-дълги задържания и по-плътно натоварване. Изгражда сила и издръжливост.',
   ex:[
-   {name:'Загрявка',          cycle:[P.c(3),P.r()], warm:true, w:0.3, restAfter:20},
-   {name:'Средно задържане',  cycle:[P.c(2),P.h(6),P.r()],     w:1.1, restAfter:35},
-   {name:'Пулсиране',         cycle:[P.c(1),P.r()], fast:true, w:0.6, restAfter:35},
+   {name:'Загрявка',        cycle:[P.c(3),P.r()],           w:0.3, restAfter:20},
+   {name:'Средно задържане',cycle:[P.c(2),P.h(7),P.r()],    w:1.1, restAfter:35},
+   {name:'Пулсиране',       cycle:[P.c(1),P.r()], fast:true,w:0.6, restAfter:35},
    {name:'Стълба',
-    cycles:[[P.c(2),P.h(3),P.r()],[P.c(2),P.h(5),P.r()],[P.c(2),P.h(7),P.r()],
-            [P.c(2),P.h(5),P.r()],[P.c(2),P.h(3),P.r()]],    w:1.0, restAfter:40},
-   {name:'Издръжливост',      cycle:[P.c(2),P.h(9),P.r()],     w:1.2, restAfter:40},
-   {name:'Обратен кегел',     cycle:[P.x(3),P.xh(5),P.r()],    w:0.7},
+    cycles:[[P.c(2),P.h(4),P.r()],[P.c(2),P.h(6),P.r()],[P.c(2),P.h(8),P.r()],
+            [P.c(2),P.h(6),P.r()],[P.c(2),P.h(4),P.r()]], w:1.0, restAfter:40},
+   {name:'Издръжливост',    cycle:[P.c(2),P.h(10),P.r()],   w:1.2, restAfter:40},
+   {name:'Обратен кегел',   cycle:[P.x(3),P.xh(6),P.r()],   w:0.7},
   ]},
- {id:3,name:'Експерт',color:'#ef4444',work:480,goal:[0,0],
+ {id:3,name:'Експерт',color:'#ef4444',work:480,goal:[0,0],hold:15,
   desc:'Максимална издръжливост и прецизен контрол. Само след стабилно второ ниво.',
   ex:[
-   {name:'Загрявка',        cycle:[P.c(3),P.r()], warm:true, w:0.3, restAfter:20},
-   {name:'Дълго задържане', cycle:[P.c(2),P.h(10),P.r()],    w:1.2, restAfter:45},
-   {name:'Асансьор',        cycle:[P.c(2),P.h(4),P.c(2),P.h(4),P.c(2),P.h(4),P.r()], w:1.0, restAfter:50},
-   {name:'Бърза серия',     cycle:[P.c(1),P.r()], fast:true, w:0.6, restAfter:40},
-   {name:'Максимална издръжливост',cycle:[P.c(3),P.h(12),P.r()], w:1.2, restAfter:50},
-   {name:'Обратен кегел',   cycle:[P.x(3),P.xh(7),P.r()],    w:0.7},
+   {name:'Загрявка',        cycle:[P.c(3),P.r()],           w:0.3, restAfter:20},
+   {name:'Дълго задържане', cycle:[P.c(2),P.h(12),P.r()],   w:1.2, restAfter:45},
+   {name:'Асансьор',        cycle:[P.c(2),P.h(5),P.c(2),P.h(5),P.c(2),P.h(5),P.r()], w:1.0, restAfter:50},
+   {name:'Бърза серия',     cycle:[P.c(1),P.r()], fast:true,w:0.6, restAfter:40},
+   {name:'Максимална издръжливост',cycle:[P.c(3),P.h(15),P.r()], w:1.2, restAfter:50},
+   {name:'Обратен кегел',   cycle:[P.x(3),P.xh(8),P.r()],   w:0.7},
   ]},
 ];
 
@@ -308,20 +306,20 @@ const INFO={
     what:'Целта е да намериш точния мускул и да го свиваш изолирано - без да включваш корем, седалище и бедра, и без да задържаш дъх. Ако другаде се стяга нещо, свиваш прекалено силно.',
     days:'Всеки ден, 2 до 3 седмици (14-21 тренировки)',
     pos:'Тренирай легнал по гръб със свити колене. В това положение гравитацията не пречи и е най-лесно да усетиш мускула.',
-    next:'Мини на Напреднал, когато можеш да задържиш 5 секунди чисто, дишаш нормално през цялото време и последното упражнение ти е толкова контролирано, колкото първото.',
-    note:'Качеството бие количеството. Пет чисти свивания струват повече от двайсет със стегнат корем. Ако не си сигурен, че хващаш верния мускул, стой на Лека интензивност.'},
+    next:'Готов си за Напреднал, когато можеш да задържиш 5 секунди чисто, дишаш нормално през цялото време и последното упражнение ти е толкова контролирано, колкото първото.',
+    note:'Качеството бие количеството. Пет чисти свивания струват повече от двайсет със стегнат корем.'},
  2:{lead:'Изграждане. Оттук нататък се трупа сила и издръжливост.',
-    what:'Задържанията се удължават и мускулът се учи да поддържа напрежение, а не само да се стяга за миг. Това е нивото, на което се усещат първите реални промени.',
+    what:'Задържанията се удължават до 10 секунди и мускулът се учи да поддържа напрежение, а не само да се стяга за миг. Това е нивото, на което се усещат първите реални промени.',
     days:'5-6 пъти седмично, 4 до 6 седмици (28-42 тренировки)',
     pos:'Премини към седнало положение. Когато и то стане лесно, пробвай прав - същата програма права е чувствително по-трудна, без да отнема и секунда повече.',
-    next:'Мини на Експерт, когато 10-секундно задържане ти е спокойно и повторенията накрая са толкова силни, колкото в началото - без треперене и без нужда да поемаш дъх.',
+    next:'Готов си за Експерт, когато 10-секундно задържане ти е спокойно и повторенията накрая са толкова силни, колкото в началото - без треперене и без нужда да поемаш дъх.',
     note:'Вземай поне един почивен ден седмично. Тазовото дъно е мускул и расте във възстановяването, не в тренировката.'},
  3:{lead:'Поддържане. Няма следващо ниво - оттук нататък се задържа постигнатото.',
-    what:'Максимална издръжливост и прецизен контрол. Дългите задържания и бързите серии работят върху двата типа мускулни влакна.',
+    what:'Задържания до 15 секунди, бързи серии и асансьор. Работи се върху двата типа мускулни влакна едновременно.',
     days:'4-5 пъти седмично, безсрочно като поддръжка',
     pos:'Прав, и при възможност в движение - ходене или лек клек по време на задържането. Това е последната истинска прогресия.',
-    next:'Ако ти е станало лесно, вдигни интензивността или смени позицията, вместо да добавяш дни.',
-    note:'Повече не е по-добре. Ежедневна работа на висока интензивност води до пренапрежение, а симптомите му приличат на слабост, макар да са точно обратното. Затова и обратният кегел накрая не е добавка, а част от програмата.'},
+    next:'Ако ти е станало лесно, смени позицията вместо да добавяш дни. Права програма е много по-трудна от легнала.',
+    note:'Повече не е по-добре. Ежедневна работа на пълни обороти води до пренапрежение, а симптомите му приличат на слабост, макар да са точно обратното. Затова и обратният кегел накрая не е добавка, а част от програмата.'},
 };
 const GENERAL='Първите промени обикновено се усещат след 4-6 седмици редовна практика, по-осезаемите - към 8-12-та седмица. Това са общи насоки, не медицински съвет. При болка, инконтиненция или след операция се консултирай с уролог или физиотерапевт по тазово дъно, преди да продължиш сам.';
 
@@ -340,24 +338,18 @@ function labelFor(p){
   return '';
 }
 
-/* Скалира цикъла спрямо интензивността и изчислява отпускането от напрежението. */
-function scaleCycle(cy,t,warm){
-  const tt = warm ? TIERS[0] : t;      /* загрявката винаги е лека */
-  const out=cy.map(p=>{
-    if(p.t==='xh')return {t:'xh',d:Math.min(12,Math.max(1,Math.round(p.d*(1+(tt.hold-1)*0.6))))};
-    if(p.t==='h') return {t:'h', d:Math.min(MAX_HOLD,Math.max(1,Math.round(p.d*tt.hold)))};
-    return {t:p.t,d:p.d};
-  });
+/* Отпускането се изчислява от напрежението, закръглено нагоре. */
+function buildCycle(cy){
+  const out=cy.map(p=>({t:p.t,d:p.d}));
   const tension=out.filter(p=>p.t!=='r').reduce((a,p)=>a+p.d,0);
-  /* нагоре, не надолу - при закръгляване винаги в полза на възстановяването */
-  const rec=Math.min(MAX_REC,Math.max(1,Math.ceil(tension*tt.rec)));
+  const rec=Math.min(MAX_REC,Math.max(1,Math.ceil(tension)));
   return out.map(p=>p.t==='r'?{t:'r',d:rec}:p);
 }
 
-function planFor(level,tier){
+function planFor(level){
   const sw=level.ex.reduce((a,e)=>a+e.w,0);
   const items=level.ex.map(e=>{
-    const cys=(e.cycles||[e.cycle]).map(c=>scaleCycle(c,tier,e.warm));
+    const cys=(e.cycles||[e.cycle]).map(buildCycle);
     const unit=cys.reduce((a,c)=>a+c.reduce((x,p)=>x+p.d,0),0);
     return {name:e.name,fast:!!e.fast,restAfter:e.restAfter,cys,unit,
             reps:Math.max(1,Math.round(level.work*e.w/sw/unit))};
@@ -384,8 +376,8 @@ function planFor(level,tier){
   return items;
 }
 
-function blocksFor(level,tier){
-  const items=planFor(level,tier), out=[];
+function blocksFor(level){
+  const items=planFor(level), out=[];
   items.forEach((it,i)=>{
     if(i>0) out.push({type:'rest',name:'Почивка',d:items[i-1].restAfter||35});
     out.push({type:'ex',name:it.name,item:it,d:it.d,reps:it.shown});
@@ -425,7 +417,7 @@ function sessionFor(blocks){
 const sessionTime=blocks=>sessionFor(blocks).reduce((a,p)=>a+p.d,0);
 
 /* ================= ДНЕВНИК ================= */
-const LOGKEY='kegel-log-v1';
+const LOGKEY='kegel-log-v1', SEENKEY='kegel-unlock-seen';
 function loadLog(){ try{return JSON.parse(localStorage.getItem(LOGKEY))||[]}catch(e){return []} }
 function saveLog(l){ try{localStorage.setItem(LOGKEY,JSON.stringify(l))}catch(e){} }
 function dayStr(off){
@@ -451,6 +443,20 @@ function levelCount(id){
   return [...new Set(loadLog().filter(e=>e.l===id).map(e=>e.d))].length;
 }
 
+/* Готов ли си за следващото ниво: направил си препоръчания минимум тренировки
+   на текущото и още не си стъпвал на следващото. */
+function unlockCheck(){
+  for(const l of LEVELS){
+    const next=LEVELS.find(x=>x.id===l.id+1);
+    if(!next||!l.goal[0])continue;
+    if(levelCount(l.id)>=l.goal[0] && levelCount(next.id)===0)
+      return {from:l,to:next,done:levelCount(l.id)};
+  }
+  return null;
+}
+function seenUnlock(){ try{return localStorage.getItem(SEENKEY)}catch(e){return null} }
+function markSeen(k){ try{localStorage.setItem(SEENKEY,k)}catch(e){} }
+
 function renderStats(){
   const s=stats();
   const week=[...new Set(s.log.map(e=>e.d))].filter(d=>{
@@ -460,6 +466,22 @@ function renderStats(){
     <div class="stat"><b style="color:${s.streak?'#22c55e':'var(--dim)'}">${s.streak}</b><span>ПОРЕДНИ ДНИ</span></div>
     <div class="stat"><b>${week}</b><span>ТАЗИ СЕДМИЦА</span></div>
     <div class="stat"><b>${s.total}</b><span>ОБЩО</span></div>`;
+  renderUnlock();
+}
+
+function renderUnlock(){
+  const u=unlockCheck(), box=$('unlock');
+  if(!u||seenUnlock()===('l'+u.to.id)){ box.innerHTML=''; return; }
+  box.innerHTML=`
+    <div class="unlock" style="background:${u.to.color}1c;border:1px solid ${u.to.color}55">
+      <div class="tag" style="color:${u.to.color}">Отключено ниво</div>
+      <h4>Готов си за ${u.to.name}</h4>
+      <p>${u.done} тренировки на ниво ${u.from.name}. ${INFO[u.from.id].next}</p>
+      <div class="row">
+        <button class="go" style="background:${u.to.color}" onclick="openLevel(${u.to.id})">Отвори ${u.to.name}</button>
+        <button class="later" onclick="markSeen('l${u.to.id}');renderUnlock()">По-късно</button>
+      </div>
+    </div>`;
 }
 
 /* ================= ЕКРАНИ ================= */
@@ -473,21 +495,17 @@ $('levels').innerHTML=LEVELS.map(l=>`
     <h3>${l.name}</h3>
     <p>${l.desc}</p>
     <span class="pill" style="background:${l.color}22;color:${l.color}">
-      ${l.ex.length} упражнения · ${fmt(l.work)} мин
+      ${l.ex.length} упражнения · ${fmt(l.work)} мин · задържане до ${l.hold} сек
     </span>
   </div>`).join('');
 
 function showInfo(id){
   const l=LEVELS.find(x=>x.id===id), i=INFO[id], done=levelCount(id);
-  let progress='';
-  if(l.goal[1]){
-    const pct=Math.min(100,Math.round(done/l.goal[1]*100));
-    progress=`<div class="sec hi"><b>Твоят напредък</b>
-      <p>${done} от ${l.goal[0]}-${l.goal[1]} тренировки на това ниво</p>
-      <div class="bars"><i style="width:${pct}%;background:${l.color}"></i></div></div>`;
-  }else{
-    progress=`<div class="sec hi"><b>Твоят напредък</b><p>${done} тренировки на това ниво</p></div>`;
-  }
+  const progress=l.goal[1]
+    ? `<div class="sec hi"><b>Твоят напредък</b>
+        <p>${done} от ${l.goal[0]}-${l.goal[1]} тренировки на това ниво</p>
+        <div class="bars"><i style="width:${Math.min(100,Math.round(done/l.goal[1]*100))}%;background:${l.color}"></i></div></div>`
+    : `<div class="sec hi"><b>Твоят напредък</b><p>${done} тренировки на това ниво</p></div>`;
   $('sheet').innerHTML=`
     <div class="grab"></div>
     <h3 style="color:${l.color}">${l.name}</h3>
@@ -504,27 +522,17 @@ function showInfo(id){
 }
 function closeInfo(){$('info').classList.remove('on')}
 
-let curLevel=null, curTier=null, curBlocks=[];
+let curLevel=null, curBlocks=[];
 function openLevel(id){
   curLevel=LEVELS.find(l=>l.id===id);
-  curTier=TIERS.find(t=>t.id===id);
+  curBlocks=blocksFor(curLevel);
   $('listTitle').textContent=curLevel.name;
-  renderPlan();
-  go('s-list');
-}
-function setTier(id){ curTier=TIERS.find(t=>t.id===id); renderPlan(); }
-
-function renderPlan(){
-  curBlocks=blocksFor(curLevel,curTier);
-  document.documentElement.style.setProperty('--accent',curTier.color);
-  $('startBtn').style.background=curTier.color;
+  document.documentElement.style.setProperty('--accent',curLevel.color);
+  $('startBtn').style.background=curLevel.color;
   $('planList').innerHTML=curBlocks.filter(b=>b.type==='ex').map((b,i)=>`
     <div class="step"><span class="n">${i+1}</span>
       <span class="t"><b>${b.name}</b></span></div>`).join('');
-  $('tiers').innerHTML=TIERS.map(t=>`
-    <button class="tier ${t.id===curTier.id?'on':''}"
-      style="${t.id===curTier.id?`background:${t.color}`:''}"
-      onclick="setTier(${t.id})">${t.name}</button>`).join('');
+  go('s-list');
 }
 
 /* ================= ПЛЕЪР ================= */
@@ -541,7 +549,7 @@ function startSession(){
   total=queue.reduce((a,p)=>a+p.d,0);
   $('btnPause').textContent='❚❚ Пауза';
   $('bubbles').dataset.k='';
-  $('progBar').style.background=curTier.color;
+  $('progBar').style.background=curLevel.color;
   $('player').classList.add('on');
   requestWake();
   render(); last=performance.now(); raf=requestAnimationFrame(loop);
@@ -575,8 +583,6 @@ function render(){
   $('ring').setAttribute('stroke',resting?BLUE:'#ffffff');
   $('ring').style.strokeDashoffset=C*(1-ringP);
 
-  /* при дългите задържания напомняме за дишането - задържането на дъх е
-     най-честата грешка и обезсмисля упражнението */
   const longHold=(ph.t==='h'||ph.t==='xh')&&ph.d>=BREATHE_FROM;
   $('breathe').classList.toggle('on',longHold);
 
@@ -642,10 +648,14 @@ function finish(){
   if(navigator.vibrate)try{navigator.vibrate([80,60,80])}catch(e){}
   logToday(curLevel.id);
   const s=stats(), n=levelCount(curLevel.id);
+  const u=unlockCheck();
   const goal=curLevel.goal[1]?` · ${n} от ${curLevel.goal[0]}-${curLevel.goal[1]} на това ниво`:'';
+  let extra='';
+  if(u&&u.from.id===curLevel.id)
+    extra=`<br><span style="color:${u.to.color};font-weight:700">Отключи ниво ${u.to.name}</span>`;
   $('doneTxt').innerHTML=
-    `${curLevel.name} · интензивност ${curTier.name} · ${fmt(total)} мин<br>`+
-    `<span style="color:#22c55e;font-weight:700">${s.streak} поредни дни</span>${goal}`;
+    `${curLevel.name} · ${fmt(total)} мин<br>`+
+    `<span style="color:#22c55e;font-weight:700">${s.streak} поредни дни</span>${goal}${extra}`;
   renderStats();
   $('done').classList.add('on');
 }
