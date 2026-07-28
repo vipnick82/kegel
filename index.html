@@ -7,7 +7,6 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#08090c">
 <meta name="mobile-web-app-capable" content="yes">
-<!-- iOS: цял екран без адресна лента -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Kegel">
@@ -62,8 +61,10 @@
   .ex .t span{font-size:12.5px;color:var(--dim)}
   .ex .go{color:var(--dim);font-size:18px}
 
-  .note{background:var(--card);border:1px solid var(--line);border-radius:14px;
-    padding:12px 14px;font-size:12.5px;color:var(--dim);line-height:1.5;margin-top:18px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);
+    border-radius:14px;padding:13px 15px;margin-top:18px}
+  .legend span{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--dim)}
+  .legend i{width:9px;height:9px;border-radius:50%;display:block}
 
   /* ---------- плеър ---------- */
   #player{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;
@@ -77,16 +78,18 @@
   .ptitle b{font-size:22px;font-weight:700;letter-spacing:-.3px}
 
   .wrap{flex:1;display:grid;place-items:center;position:relative;min-height:0}
-  .stage{position:relative;width:min(76vw,290px);aspect-ratio:1}
-  svg{width:100%;height:100%;display:block}
-  #blob{transition:fill .35s ease}
-  #ring{transition:stroke .35s ease}
-  .center{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
-  #count{font-size:72px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-3px;line-height:1}
-  #phase{position:absolute;left:0;right:0;bottom:-4px;text-align:center;
-    font-size:14px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+  .stage{position:relative;width:min(86vw,340px);aspect-ratio:1}
+  svg{width:100%;height:100%;display:block;overflow:visible}
+  #glowOuter,#glowInner,#ring,#ringTrack{transition:fill .4s ease,stroke .4s ease}
 
-  .meta{display:flex;justify-content:center;gap:24px;margin:6px 0 14px;color:var(--dim);font-size:13px}
+  .center{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;pointer-events:none;gap:2px}
+  #count{font-size:66px;font-weight:800;font-variant-numeric:tabular-nums;
+    letter-spacing:-3px;line-height:1;transition:color .4s ease}
+  #phase{font-size:13px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;
+    transition:color .4s ease}
+
+  .meta{display:flex;justify-content:center;gap:24px;margin:4px 0 14px;color:var(--dim);font-size:13px}
   .meta b{color:var(--txt);font-variant-numeric:tabular-nums}
 
   .timeline{display:flex;gap:6px;justify-content:center;margin-bottom:12px;flex-wrap:nowrap;overflow:hidden}
@@ -94,7 +97,7 @@
     color:var(--dim);white-space:nowrap;border:1px solid var(--line)}
   .tl.cur{color:#0b0d11;font-weight:700;border-color:transparent}
 
-  .prog{height:4px;background:var(--card2);border-radius:99px;overflow:hidden;margin-bottom:14px}
+  .prog{height:4px;background:var(--card2);border-radius:99px;overflow:hidden;margin-bottom:16px}
   .prog i{display:block;height:100%;background:var(--accent);width:0;border-radius:99px;transition:width .2s linear}
 
   .ctrls{display:flex;gap:10px}
@@ -102,10 +105,6 @@
     cursor:pointer;background:var(--card2);color:var(--txt);border:1px solid var(--line);font-family:inherit}
   .btn.main{background:var(--accent);color:#06210f;border-color:transparent}
   .btn:active{transform:scale(.98)}
-  .toggles{display:flex;gap:8px;justify-content:center;margin-bottom:12px}
-  .tg{background:var(--card2);border:1px solid var(--line);color:var(--dim);
-    border-radius:99px;padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit}
-  .tg.on{color:var(--txt);border-color:#3a4150}
 
   /* ---------- край ---------- */
   #done{position:fixed;inset:0;background:var(--bg);display:none;place-items:center;
@@ -133,9 +132,11 @@
     <h1>Kegel Trainer</h1>
     <p class="sub">Тренировка на тазовото дъно. Избери ниво.</p>
     <div id="levels"></div>
-    <div class="note" id="tipNote">
-      💡 За най-добро изживяване: изключи безшумния режим (страничното копче), за да чуваш сигналите.
-      Екранът остава включен по време на тренировка.
+    <div class="legend">
+      <span><i style="background:#22c55e"></i> Свиване</span>
+      <span><i style="background:#ef4444"></i> Задържане</span>
+      <span><i style="background:#38bdf8"></i> Отпускане</span>
+      <span><i style="background:#5b6472"></i> Почивка</span>
     </div>
   </section>
 
@@ -154,18 +155,35 @@
     <div class="ptitle"><small id="pSmall">Упражнение</small><b id="pName"></b></div>
     <button class="x" onclick="quit()">✕</button>
   </div>
+
   <div class="wrap">
     <div class="stage">
       <svg viewBox="0 0 300 300">
-        <circle cx="150" cy="150" r="132" fill="none" stroke="#1a1e26" stroke-width="10"/>
-        <circle id="ring" cx="150" cy="150" r="132" fill="none" stroke="#22c55e" stroke-width="10"
+        <defs>
+          <filter id="blurBig" x="-70%" y="-70%" width="240%" height="240%">
+            <feGaussianBlur stdDeviation="16"/>
+          </filter>
+          <filter id="blurMid" x="-70%" y="-70%" width="240%" height="240%">
+            <feGaussianBlur stdDeviation="7"/>
+          </filter>
+        </defs>
+
+        <!-- сиянието, което пулсира навън от цифрите -->
+        <circle id="glowOuter" cx="150" cy="150" r="120" fill="#22c55e" opacity=".16" filter="url(#blurBig)"/>
+        <circle id="glowInner" cx="150" cy="150" r="100" fill="#22c55e" opacity=".22" filter="url(#blurMid)"/>
+
+        <!-- прогрес пръстенът, плътно около цифрите -->
+        <circle id="ringTrack" cx="150" cy="150" r="74" fill="none" stroke="#ffffff" stroke-opacity=".13" stroke-width="6"/>
+        <circle id="ring" cx="150" cy="150" r="74" fill="none" stroke="#22c55e" stroke-width="6"
                 stroke-linecap="round" transform="rotate(-90 150 150)"/>
-        <circle id="blob" cx="150" cy="150" r="60" fill="#22c55e" opacity=".18"/>
       </svg>
-      <div class="center"><div id="count">3</div></div>
-      <div id="phase">ПРИГОТВИ СЕ</div>
+      <div class="center">
+        <div id="count">3</div>
+        <div id="phase">ПРИГОТВИ СЕ</div>
+      </div>
     </div>
   </div>
+
   <div class="meta">
     <span>Повторение <b id="mRep">1/10</b></span>
     <span>Серия <b id="mSet">1/1</b></span>
@@ -173,10 +191,6 @@
   </div>
   <div class="timeline" id="timeline"></div>
   <div class="prog"><i id="progBar"></i></div>
-  <div class="toggles">
-    <button class="tg on" id="tgSound" onclick="toggle('sound')">🔊 Звук</button>
-    <button class="tg on" id="tgVib" onclick="toggle('vib')">📳 Вибрация</button>
-  </div>
   <div class="ctrls">
     <button class="btn" onclick="skip()">Пропусни фазата</button>
     <button class="btn main" id="btnPause" onclick="togglePause()">Пауза</button>
@@ -206,7 +220,8 @@ const P = {
   r:(d)=>({t:'r',d,l:'ОТПУСНИ'}),
   p:(d)=>({t:'p',d,l:'ПОЧИВКА'}),
 };
-const COLOR={c:'#22c55e',h:'#f59e0b',r:'#38bdf8',p:'#5b6472',prep:'#5b6472',srest:'#5b6472'};
+/* Свиване = зелено, задържане = червено, отпускане = синьо, почивки = неутрално сиво */
+const COLOR={c:'#22c55e',h:'#ef4444',r:'#38bdf8',p:'#5b6472',prep:'#5b6472',srest:'#5b6472'};
 const LABEL={c:'СВИЙ',h:'ЗАДРЪЖ',r:'ОТПУСНИ',p:'ПОЧИВКА',prep:'ПРИГОТВИ СЕ',srest:'ПОЧИВКА МЕЖДУ СЕРИИ'};
 
 const LEVELS=[
@@ -276,7 +291,6 @@ function openLevel(id){
   curLevel=LEVELS.find(l=>l.id===id);
   $('listTitle').textContent=curLevel.name;
   document.documentElement.style.setProperty('--accent',curLevel.color);
-  document.querySelector('meta[name=theme-color]').setAttribute('content','#08090c');
   $('exList').innerHTML=curLevel.ex.map((e,i)=>{
     const cy=cyclesOf(e), total=cy.length*(e.sets||1);
     return `<button class="ex" onclick="start(${i})">
@@ -288,22 +302,18 @@ function openLevel(id){
 }
 
 /* ============ ТАЙМЕР ============ */
-let ex=null,queue=[],idx=0,elapsed=0,total=0,before=0,paused=false,raf=null,last=0,lastBeep=-1,wake=null;
-const opt={sound:true,vib:true};
-const C=2*Math.PI*132;
+let ex=null,queue=[],idx=0,elapsed=0,total=0,before=0,paused=false,raf=null,last=0,wake=null;
+const RING_R=74;
+const C=2*Math.PI*RING_R;
 $('ring').style.strokeDasharray=C;
 
-function toggle(k){
-  opt[k]=!opt[k];
-  $(k==='sound'?'tgSound':'tgVib').classList.toggle('on',opt[k]);
-  if(k==='sound'&&opt.sound)beep(700,.06,.25);
-  if(k==='vib'&&opt.vib){initHaptics();buzz([60])}  // тест при включване - усещаш веднага дали работи
-}
+/* радиуси на сиянието: колкото по-голямо, толкова по-силно е усилието */
+const GMIN=76, GMAX=136;
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
 
 function start(i){
-  unlockAudio(); initHaptics();
   ex=curLevel.ex[i];
-  queue=buildQueue(ex); idx=0; elapsed=0; before=0; paused=false; lastBeep=-1;
+  queue=buildQueue(ex); idx=0; elapsed=0; before=0; paused=false;
   total=queue.reduce((a,p)=>a+p.d,0);
   $('pSmall').textContent=curLevel.name;
   $('pName').textContent=ex.name;
@@ -319,9 +329,9 @@ function loop(now){
   if(!paused){
     elapsed+=dt;
     while(elapsed>=queue[idx].d){
-      elapsed-=queue[idx].d; before+=queue[idx].d; idx++; lastBeep=-1;
+      elapsed-=queue[idx].d; before+=queue[idx].d; idx++;
       if(idx>=queue.length) return finish();
-      cue(queue[idx]);
+      buzz(queue[idx].t);
     }
   }
   render();
@@ -331,23 +341,36 @@ function loop(now){
 function render(){
   const ph=queue[idx], p=Math.min(elapsed/ph.d,1), left=Math.max(0,ph.d-elapsed);
   const col=COLOR[ph.t];
+
+  /* цифрите в центъра - намаляват */
   $('count').textContent=Math.ceil(left-0.001)||0;
   $('count').style.color=col;
   $('phase').textContent=ph.l;
   $('phase').style.color=col;
-  $('ring').setAttribute('stroke',col);
-  $('ring').style.strokeDashoffset=C*p;
 
-  const RMIN=42,RMAX=118; let r;
-  const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
-  if(ph.t==='c')      r=RMAX-(RMAX-RMIN)*ease(p);
-  else if(ph.t==='h') r=RMIN+3*Math.sin(elapsed*7);
-  else if(ph.t==='r') r=RMIN+(RMAX-RMIN)*ease(p);
-  else                r=RMAX+4*Math.sin(elapsed*1.6);
-  const blob=$('blob');
-  blob.setAttribute('r',r.toFixed(1));
-  blob.setAttribute('fill',col);
-  blob.setAttribute('opacity',(ph.t==='h'?.34:(ph.t==='p'||ph.t==='prep'||ph.t==='srest')?.10:.22).toFixed(2));
+  /* прогрес пръстенът около цифрите */
+  $('ring').setAttribute('stroke',col);
+  $('ring').style.strokeDashoffset=C*(1-p);
+
+  /* сиянието пулсира навън от цифрите:
+     свиване -> расте (усилието се качва), задържане -> голямо с бърз трепет,
+     отпускане -> прибира се навътре, почивка -> малко и бавно диша */
+  let g;
+  if(ph.t==='c')      g=GMIN+(GMAX-GMIN)*ease(p);
+  else if(ph.t==='h') g=GMAX+4*Math.sin(elapsed*7);
+  else if(ph.t==='r') g=GMAX-(GMAX-GMIN)*ease(p);
+  else                g=GMIN-6+5*Math.sin(elapsed*1.5);
+
+  const gi=$('glowInner'), go_=$('glowOuter');
+  gi.setAttribute('r',g.toFixed(1));
+  go_.setAttribute('r',(g*1.22).toFixed(1));
+  gi.setAttribute('fill',col);
+  go_.setAttribute('fill',col);
+
+  /* при почивка сиянието е по-бледо */
+  const calm=(ph.t==='p'||ph.t==='prep'||ph.t==='srest');
+  gi.setAttribute('opacity',(calm?.12:ph.t==='h'?.30:.22).toFixed(2));
+  go_.setAttribute('opacity',(calm?.08:ph.t==='h'?.20:.15).toFixed(2));
 
   $('mRep').textContent=ph.rep?`${ph.rep}/${ph.reps}`:'-';
   $('mSet').textContent=ph.set?`${ph.set}/${ph.sets}`:`1/${ex.sets||1}`;
@@ -358,78 +381,25 @@ function render(){
   const tl=queue.slice(idx,idx+4).map((q,i)=>
     `<span class="tl ${i===0?'cur':''}" ${i===0?`style="background:${COLOR[q.t]};"`:''}>${q.l.toLowerCase()} ${q.d}с</span>`).join('');
   if($('timeline').dataset.k!==idx+''){$('timeline').innerHTML=tl;$('timeline').dataset.k=idx}
-
-  const s=Math.ceil(left-0.001);
-  if(!paused && s<=3 && s>0 && s!==lastBeep){lastBeep=s; beep(s===1?880:520,.06,.25)}
 }
 
-function cue(ph){
-  if(ph.t==='c'){beep(760,.12,.5); buzz([50])}
-  else if(ph.t==='h'){beep(620,.1,.4); buzz([30,60,30])}
-  else if(ph.t==='r'){beep(420,.14,.4); buzz([80])}
-  else {beep(300,.16,.3); buzz([25])}
-}
-
-/* --- звук (iOS изисква отключване при докосване) --- */
-let ac=null;
-function unlockAudio(){
+/* вибрация - работи на Android, на iPhone Safari я няма и просто не прави нищо */
+function buzz(t){
+  if(!navigator.vibrate)return;
   try{
-    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
-    if(ac.state==='suspended')ac.resume();
-    const o=ac.createOscillator(),g=ac.createGain();
-    g.gain.value=0.0001;o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+.02);
+    if(t==='c')navigator.vibrate([60]);
+    else if(t==='h')navigator.vibrate([30,60,30]);
+    else if(t==='r')navigator.vibrate([80]);
+    else navigator.vibrate([25]);
   }catch(e){}
-}
-document.addEventListener('touchstart',unlockAudio,{once:true});
-document.addEventListener('click',unlockAudio,{once:true});
-
-function beep(f,dur,vol){
-  if(!opt.sound||!ac)return;
-  try{
-    if(ac.state==='suspended')ac.resume();
-    const o=ac.createOscillator(),g=ac.createGain();
-    o.type='sine'; o.frequency.value=f;
-    g.gain.setValueAtTime(0,ac.currentTime);
-    g.gain.linearRampToValueAtTime(vol,ac.currentTime+.012);
-    g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+dur);
-    o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime+dur+.02);
-  }catch(e){}
-}
-/* --- вибрация ---
-   Android: истинско navigator.vibrate.
-   iOS: Safari няма Vibration API. Заобикаляме със скрит <input type="checkbox" switch>
-   (Safari 17.4+) - щракване по неговия <label> пуска системния хаптик.
-   Apple запуши този трик в iOS 26.5, затова има и проверка дали изобщо реагира. */
-let hapLabel=null;
-const hasVibrate = typeof navigator.vibrate === 'function';
-const hasSwitch  = (()=>{try{return 'switch' in document.createElement('input')}catch(e){return false}})();
-const canHaptic  = hasVibrate || hasSwitch;
-
-function initHaptics(){
-  if(hapLabel||!hasSwitch)return;
-  const l=document.createElement('label'), i=document.createElement('input');
-  i.type='checkbox'; i.setAttribute('switch',''); i.tabIndex=-1;
-  l.appendChild(i); l.setAttribute('aria-hidden','true');
-  l.style.cssText='position:fixed;top:0;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';
-  document.body.appendChild(l); hapLabel=l;
-}
-function tapHaptic(){ if(hapLabel)try{hapLabel.click()}catch(e){} }
-
-function buzz(p){
-  if(!opt.vib)return;
-  if(hasVibrate){try{navigator.vibrate(p);return}catch(e){}}
-  if(!hapLabel)return;
-  // масивът е [трептене, пауза, трептене...] - броим само трептенията
-  const pulses=Math.max(1,Math.ceil(p.length/2));
-  for(let i=0;i<pulses;i++) setTimeout(tapHaptic,i*90);
 }
 
 function togglePause(){paused=!paused;$('btnPause').textContent=paused?'Продължи':'Пауза';if(!paused){last=performance.now();requestWake()}}
-function skip(){before+=queue[idx].d;elapsed=0;idx++;lastBeep=-1;if(idx>=queue.length)return finish();cue(queue[idx]);render()}
+function skip(){before+=queue[idx].d;elapsed=0;idx++;if(idx>=queue.length)return finish();buzz(queue[idx].t);render()}
 function quit(){cancelAnimationFrame(raf);$('player').classList.remove('on');releaseWake()}
 function finish(){
   cancelAnimationFrame(raf); $('player').classList.remove('on'); releaseWake();
-  beep(660,.15,.4);setTimeout(()=>beep(880,.25,.4),160); buzz([80,60,80]);
+  if(navigator.vibrate)try{navigator.vibrate([80,60,80])}catch(e){}
   const cy=cyclesOf(ex);
   $('doneTxt').textContent=`${ex.name} · ${cy.length*(ex.sets||1)} повторения · ${fmt(total)} мин`;
   $('done').classList.add('on');
@@ -446,9 +416,7 @@ document.addEventListener('visibilitychange',()=>{
 /* --- iOS специфики --- */
 const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
-if(!canHaptic){opt.vib=false;$('tgVib').style.display='none'}else{initHaptics()}
 if(isIOS&&!standalone){setTimeout(()=>$('a2hs').classList.add('on'),1200)}
-if(standalone){$('tipNote').textContent='💡 Изключи безшумния режим (страничното копче), за да чуваш сигналите. Екранът остава включен по време на тренировка.'}
 document.addEventListener('gesturestart',e=>e.preventDefault());
 document.addEventListener('dblclick',e=>e.preventDefault());
 
