@@ -1,5 +1,5 @@
 /* Kegel Trainer - service worker (офлайн) */
-const CACHE = 'kegel-v1';
+const CACHE = 'kegel-v2';
 const ASSETS = [
   './',
   './index.html',

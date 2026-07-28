@@ -293,10 +293,15 @@ const opt={sound:true,vib:true};
 const C=2*Math.PI*132;
 $('ring').style.strokeDasharray=C;
 
-function toggle(k){opt[k]=!opt[k];$(k==='sound'?'tgSound':'tgVib').classList.toggle('on',opt[k]);if(k==='sound'&&opt.sound)beep(700,.06,.25)}
+function toggle(k){
+  opt[k]=!opt[k];
+  $(k==='sound'?'tgSound':'tgVib').classList.toggle('on',opt[k]);
+  if(k==='sound'&&opt.sound)beep(700,.06,.25);
+  if(k==='vib'&&opt.vib){initHaptics();buzz([60])}  // тест при включване - усещаш веднага дали работи
+}
 
 function start(i){
-  unlockAudio();
+  unlockAudio(); initHaptics();
   ex=curLevel.ex[i];
   queue=buildQueue(ex); idx=0; elapsed=0; before=0; paused=false; lastBeep=-1;
   total=queue.reduce((a,p)=>a+p.d,0);
@@ -390,7 +395,34 @@ function beep(f,dur,vol){
     o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime+dur+.02);
   }catch(e){}
 }
-function buzz(p){if(opt.vib&&navigator.vibrate)try{navigator.vibrate(p)}catch(e){}}
+/* --- вибрация ---
+   Android: истинско navigator.vibrate.
+   iOS: Safari няма Vibration API. Заобикаляме със скрит <input type="checkbox" switch>
+   (Safari 17.4+) - щракване по неговия <label> пуска системния хаптик.
+   Apple запуши този трик в iOS 26.5, затова има и проверка дали изобщо реагира. */
+let hapLabel=null;
+const hasVibrate = typeof navigator.vibrate === 'function';
+const hasSwitch  = (()=>{try{return 'switch' in document.createElement('input')}catch(e){return false}})();
+const canHaptic  = hasVibrate || hasSwitch;
+
+function initHaptics(){
+  if(hapLabel||!hasSwitch)return;
+  const l=document.createElement('label'), i=document.createElement('input');
+  i.type='checkbox'; i.setAttribute('switch',''); i.tabIndex=-1;
+  l.appendChild(i); l.setAttribute('aria-hidden','true');
+  l.style.cssText='position:fixed;top:0;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none';
+  document.body.appendChild(l); hapLabel=l;
+}
+function tapHaptic(){ if(hapLabel)try{hapLabel.click()}catch(e){} }
+
+function buzz(p){
+  if(!opt.vib)return;
+  if(hasVibrate){try{navigator.vibrate(p);return}catch(e){}}
+  if(!hapLabel)return;
+  // масивът е [трептене, пауза, трептене...] - броим само трептенията
+  const pulses=Math.max(1,Math.ceil(p.length/2));
+  for(let i=0;i<pulses;i++) setTimeout(tapHaptic,i*90);
+}
 
 function togglePause(){paused=!paused;$('btnPause').textContent=paused?'Продължи':'Пауза';if(!paused){last=performance.now();requestWake()}}
 function skip(){before+=queue[idx].d;elapsed=0;idx++;lastBeep=-1;if(idx>=queue.length)return finish();cue(queue[idx]);render()}
@@ -414,7 +446,7 @@ document.addEventListener('visibilitychange',()=>{
 /* --- iOS специфики --- */
 const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
-if(!navigator.vibrate){opt.vib=false;$('tgVib').style.display='none'}
+if(!canHaptic){opt.vib=false;$('tgVib').style.display='none'}else{initHaptics()}
 if(isIOS&&!standalone){setTimeout(()=>$('a2hs').classList.add('on'),1200)}
 if(standalone){$('tipNote').textContent='💡 Изключи безшумния режим (страничното копче), за да чуваш сигналите. Екранът остава включен по време на тренировка.'}
 document.addEventListener('gesturestart',e=>e.preventDefault());
