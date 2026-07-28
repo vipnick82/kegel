@@ -198,23 +198,26 @@
    цифрата отчитат цялата серия до почивката, а не всяко отделно свиване.
    restAfter  -> почивка след упражнението, съобразена с тежестта му.          */
 const P={ c:(d)=>({t:'c',d}), h:(d)=>({t:'h',d}), r:(d)=>({t:'r',d}), p:(d)=>({t:'p',d}) };
-const RED='#ef4444', GREEN='#22c55e', GREY='#5b6472';
-const COLOR={c:RED,h:RED,r:GREEN,p:GREY,prep:GREY,xrest:GREY};
+const RED='#ef4444', GREEN='#22c55e', BLUE='#38bdf8';
+/* Усилието е червено, отпускането зелено, всяка почивка е светлосиня. */
+const COLOR={c:RED,h:RED,r:GREEN,p:BLUE,prep:BLUE,xrest:BLUE};
 
+/* Времената по-долу са ЧИСТО упражнение: 4 / 6 / 8 минути.
+   Почивките между упражненията идват отгоре и не се броят в тях. */
 const LEVELS=[
  {id:1,name:'Начинаещ',color:'#22c55e',
   desc:'Учиш се да намираш и контролираш мускула. Кратки свивания, дълги почивки.',
   ex:[
-   {name:'Основно свиване',   cycle:[P.c(3),P.p(3)],              reps:8,  restAfter:25},
-   {name:'Бързи импулси',     cycle:[P.c(1),P.r(1)],  fast:true,  reps:14, restAfter:30},
-   {name:'Кратко задържане',  cycle:[P.c(2),P.h(3),P.r(2),P.p(5)],reps:5,  restAfter:40},
+   {name:'Основно свиване',   cycle:[P.c(3),P.p(3)],              reps:10, restAfter:25},
+   {name:'Бързи импулси',     cycle:[P.c(1),P.r(1)],  fast:true,  reps:16, restAfter:30},
+   {name:'Кратко задържане',  cycle:[P.c(2),P.h(3),P.r(2),P.p(5)],reps:7,  restAfter:40},
    {name:'Контрол с дишане',  cycle:[P.c(4),P.h(2),P.r(4),P.p(6)],reps:4},
   ]},
  {id:2,name:'Напреднал',color:'#f59e0b',
   desc:'По-дълги задържания и по-плътно натоварване. Изгражда сила и издръжливост.',
   ex:[
    {name:'Средно задържане',  cycle:[P.c(2),P.h(6),P.r(2),P.p(6)],  reps:7, restAfter:40},
-   {name:'Пулсиране',         cycle:[P.c(1),P.r(1)],   fast:true,   reps:22,restAfter:40},
+   {name:'Пулсиране',         cycle:[P.c(1),P.r(1)],   fast:true,   reps:27,restAfter:40},
    {name:'Стълба',
     cycles:[[P.c(2),P.h(3),P.r(2),P.p(5)],[P.c(2),P.h(5),P.r(2),P.p(5)],
             [P.c(2),P.h(7),P.r(2),P.p(6)],[P.c(2),P.h(5),P.r(2),P.p(5)],
@@ -224,9 +227,9 @@ const LEVELS=[
  {id:3,name:'Експерт',color:'#ef4444',
   desc:'Максимална издръжливост и прецизен контрол. Само след стабилно второ ниво.',
   ex:[
-   {name:'Дълго задържане',   cycle:[P.c(2),P.h(15),P.r(3),P.p(10)],reps:4, restAfter:55},
+   {name:'Дълго задържане',   cycle:[P.c(2),P.h(15),P.r(3),P.p(10)],reps:5, restAfter:55},
    {name:'Асансьор',          cycle:[P.c(2),P.h(5),P.c(2),P.h(5),P.c(2),P.h(5),P.r(5),P.p(12)],reps:3,restAfter:60},
-   {name:'Бърза серия',       cycle:[P.c(1),P.r(1)],   fast:true,   reps:32,restAfter:42},
+   {name:'Бърза серия',       cycle:[P.c(1),P.r(1)],   fast:true,   reps:38,restAfter:45},
    {name:'Максимална издръжливост',cycle:[P.c(3),P.h(20),P.r(4),P.p(8)],reps:4},
   ]},
 ];
@@ -236,12 +239,12 @@ const $=id=>document.getElementById(id);
 const fmt=s=>Math.floor(s/60)+':'+String(Math.round(s%60)).padStart(2,'0');
 const cyclesOf=e=>e.cycles||Array.from({length:e.reps},()=>e.cycle);
 
-function labelFor(phase,next){
+function labelFor(phase){
   if(phase.t==='prep')  return 'ПРИГОТВИ СЕ';
   if(phase.t==='xrest'||phase.t==='p') return 'ПОЧИВКА';
   if(phase.t==='r')     return 'ОТПУСНИ';
-  if(phase.t==='h')     return 'СВИЙ И ЗАДРЪЖ';
-  if(phase.t==='c')     return (next&&next.t==='h')?'СВИЙ И ЗАДРЪЖ':'СВИЙ';
+  if(phase.t==='h')     return 'ЗАДРЪЖ';
+  if(phase.t==='c')     return 'СВИЙ';
   return '';
 }
 
@@ -290,9 +293,12 @@ function buildSession(blocks){
     if(b.type==='rest') q.push({t:'xrest',d:b.d,block:bi});
     else buildQueue(b.ex,bi).forEach(p=>q.push(p));
   });
-  q.forEach((p,i)=>{ p.l=labelFor(p,q[i+1]); });
+  q.forEach(p=>{ p.l=labelFor(p); });
   return markRingGroups(q);
 }
+/* чисто време на упражненията (без почивките между тях) */
+const workTime=level=>level.ex.reduce((a,e)=>a+exTime(e),0);
+/* цялото времетраене на сесията, с почивките */
 const planTime=level=>buildSession(buildPlan(level)).reduce((a,p)=>a+p.d,0);
 
 /* ============ ЕКРАНИ ============ */
@@ -304,7 +310,7 @@ $('levels').innerHTML=LEVELS.map(l=>`
     <h3>${l.name}</h3>
     <p>${l.desc}</p>
     <span class="pill" style="background:${l.color}22;color:${l.color}">
-      ${l.ex.length} упражнения · ${fmt(planTime(l))} мин
+      ${l.ex.length} упражнения · ${fmt(workTime(l))} мин
     </span>
   </button>`).join('');
 
@@ -316,7 +322,7 @@ function openLevel(id){
   document.documentElement.style.setProperty('--accent',curLevel.color);
   $('startBtn').style.background=curLevel.color;
   $('startBtn').innerHTML=`Започни дневната програма
-    <small>${curLevel.ex.length} упражнения · ${fmt(planTime(curLevel))} мин общо</small>`;
+    <small>${curLevel.ex.length} упражнения · ${fmt(workTime(curLevel))} мин чисто · ${fmt(planTime(curLevel))} с почивките</small>`;
 
   $('planList').innerHTML=curLevel.ex.map((e,i)=>`
     <div class="step">
@@ -373,17 +379,22 @@ function render(){
   const ringP=Math.min(rgElapsed/rgTotal,1);
   const ringLeft=Math.max(0,rgTotal-rgElapsed);
 
+  /* при почивка цифрата, надписът и пръстенът светят в светлосиньо;
+     иначе цифрата и пръстенът са бели, а цветът се носи от сиянието */
+  const resting=(ph.t==='p'||ph.t==='xrest'||ph.t==='prep');
   $('count').textContent=Math.ceil(ringLeft-0.001)||0;
+  $('count').style.color=resting?BLUE:'#fff';
   $('phase').textContent=ph.l;
   $('phase').style.color=col;
+  $('ring').setAttribute('stroke',resting?BLUE:'#ffffff');
   $('ring').style.strokeDashoffset=C*(1-ringP);
 
-  /* сиянието винаги следва темпото на текущата фаза - при бързите импулси
-     то продължава да пулсира на всяко свиване, само лентата е спокойна */
+  /* сиянието следва темпото на текущата фаза: расте при свиване,
+     стои издуто и само тупти при задържане, спада при отпускане */
   const p=Math.min(elapsed/ph.d,1);
   let g;
   if(ph.t==='c')      g=GMIN+(GMAX-GMIN)*ease(p);
-  else if(ph.t==='h') g=GMAX+3*Math.sin(elapsed*6);
+  else if(ph.t==='h') g=GMAX-5+7*Math.abs(Math.sin(elapsed*2.4));
   else if(ph.t==='r') g=GMAX-(GMAX-GMIN)*ease(p);
   else                g=GMIN-8+5*Math.sin(elapsed*1.4);
 
