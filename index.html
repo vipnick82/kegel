@@ -36,9 +36,13 @@
   .sub{color:var(--dim);font-size:14px;margin:0 0 22px}
 
   .lvl{display:block;width:100%;text-align:left;border:1px solid var(--line);
-    background:var(--card);color:var(--txt);border-radius:18px;padding:18px;
+    background:var(--card);color:var(--txt);border-radius:18px;padding:18px 52px 18px 18px;
     margin-bottom:12px;cursor:pointer;transition:.15s;position:relative;overflow:hidden}
   .lvl:active{transform:scale(.985)}
+  .infoBtn{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;
+    background:var(--card2);border:1px solid var(--line);display:grid;place-items:center;
+    font-size:14px;font-weight:700;color:var(--dim);cursor:pointer;z-index:2}
+  .infoBtn:active{transform:scale(.9)}
   .lvl .bar{position:absolute;left:0;top:0;bottom:0;width:4px}
   .lvl h3{margin:0 0 4px;font-size:18px}
   .lvl p{margin:0;color:var(--dim);font-size:13px;line-height:1.45}
@@ -114,6 +118,30 @@
   #done h2{margin:0 0 8px;font-size:26px}
   #done p{color:var(--dim);margin:0 0 26px;font-size:14px;line-height:1.6}
   #done .pauseBtn{max-width:280px;margin:0 auto;background:#22c55e;color:#06210f;border-color:transparent}
+
+  /* ---------- информация за нивото ---------- */
+  #info{position:fixed;inset:0;background:rgba(4,5,7,.82);display:none;z-index:80;
+    align-items:flex-end;justify-content:center;
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  #info.on{display:flex}
+  .sheet{background:#12141a;border:1px solid var(--line);border-radius:22px 22px 0 0;
+    width:100%;max-width:480px;max-height:88vh;overflow-y:auto;
+    padding:22px 20px calc(var(--sb) + 22px);animation:up .25s ease}
+  @keyframes up{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+  .sheet .grab{width:38px;height:4px;border-radius:99px;background:#2c313b;margin:0 auto 18px}
+  .sheet h3{margin:0 0 2px;font-size:21px}
+  .sheet .lead{color:var(--dim);font-size:13px;margin:0 0 20px}
+  .sec{margin-bottom:18px}
+  .sec b{display:block;font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--dim);margin-bottom:6px}
+  .sec p{margin:0;font-size:14px;line-height:1.6}
+  .sec.hi{background:var(--card2);border-radius:14px;padding:14px 15px}
+  .sec.hi p{font-size:14.5px;font-weight:600}
+  .disc{color:#6b7280;font-size:12px;line-height:1.55;margin:20px 0 18px;
+    border-top:1px solid var(--line);padding-top:16px}
+  .sheet button{width:100%;border:0;border-radius:99px;padding:17px;font-size:15px;
+    font-weight:700;cursor:pointer;background:var(--card2);color:var(--txt);
+    border:1px solid var(--line);font-family:inherit}
 
   /* ---------- банер ---------- */
   #a2hs{position:fixed;left:12px;right:12px;bottom:calc(var(--sb) + 12px);max-width:456px;
@@ -192,6 +220,10 @@
   </div>
 </div>
 
+<div id="info" onclick="if(event.target===this)closeInfo()">
+  <div class="sheet" id="sheet"></div>
+</div>
+
 <div id="a2hs">
   <p><b>Добави Kegel на началния екран</b></p>
   <span>Натисни <b>Сподели</b> ⬆️ долу в Safari → <b>Add to Home Screen</b>. После се отваря на цял екран като истинско приложение и работи без интернет.</span>
@@ -222,6 +254,27 @@ const TIERS=[
 /* work = чисто време на упражненията в секунди (без почивките между тях)
    w    = каква част от това време се пада на упражнението
    restAfter = почивка след упражнението при базова интензивност          */
+/* Информацията зад бутона ⓘ на всяка карта. Дните са ориентир, не правило -
+   критерият за преминаване нататък е усещането, не календарът. */
+const INFO={
+ 1:{lead:'Основа. Тук се учиш на техника, не на сила.',
+    what:'Целта е да намериш точния мускул и да го свиваш изолирано - без да включваш корем, седалище и бедра, и без да задържаш дъх. Ако другаде се стяга нещо, свиваш прекалено силно.',
+    days:'Всеки ден, 2 до 3 седмици (14-21 дни)',
+    next:'Мини на Напреднал, когато можеш да задържиш 5 секунди чисто, дишаш нормално през цялото време и последното упражнение ти е толкова контролирано, колкото първото.',
+    note:'Качеството бие количеството. Пет чисти свивания струват повече от двайсет със стегнат корем. Ако не си сигурен, че хващаш верния мускул, започни с Лека интензивност и не бързай.'},
+ 2:{lead:'Изграждане. Оттук нататък се трупа сила и издръжливост.',
+    what:'Задържанията се удължават и мускулът се учи да поддържа напрежение, а не само да се стяга за миг. Това е нивото, на което се усещат първите реални промени.',
+    days:'5-7 пъти седмично, 4 до 6 седмици (28-42 дни)',
+    next:'Мини на Експерт, когато 10-секундно задържане ти е спокойно и повторенията накрая са толкова силни, колкото в началото - без треперене и без нужда да поемаш дъх.',
+    note:'Ако усетиш умора или дискомфорт, вземи ден почивка. Тазовото дъно е мускул и се възстановява като всеки друг - тренировка всеки ден без изключение не е предимство.'},
+ 3:{lead:'Поддържане. Няма следващо ниво - оттук нататък се задържа постигнатото.',
+    what:'Максимална издръжливост и прецизен контрол. Дългите задържания и бързите серии работят заедно върху двата типа мускулни влакна.',
+    days:'4-5 пъти седмично, безсрочно като поддръжка',
+    next:'Ако ти е станало лесно, вдигни интензивността на Средна или Висока вместо да добавяш дни.',
+    note:'Повече не е по-добре. Ежедневна работа на висока интензивност води до пренапрежение, а симптомите му приличат на слабост, макар да са точно обратното. Затова и обратният кегел накрая не е добавка, а част от програмата.'},
+};
+const GENERAL='Първите промени обикновено се усещат след 4-6 седмици редовна практика, по-осезаемите - към 8-12-та седмица. Това са общи насоки, не медицински съвет. При болка, инконтиненция или след операция се консултирай с уролог или физиотерапевт по тазово дъно, преди да продължиш сам.';
+
 const LEVELS=[
  {id:1,name:'Начинаещ',color:'#22c55e',work:240,
   desc:'Учиш се да намираш и контролираш мускула. Кратки свивания, дълги почивки.',
@@ -369,14 +422,32 @@ const sessionTime=blocks=>sessionFor(blocks).reduce((a,p)=>a+p.d,0);
 function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));window.scrollTo(0,0)}
 
 $('levels').innerHTML=LEVELS.map(l=>`
-  <button class="lvl" onclick="openLevel(${l.id})">
+  <div class="lvl" role="button" tabindex="0" onclick="openLevel(${l.id})">
     <span class="bar" style="background:${l.color}"></span>
+    <span class="infoBtn" role="button" aria-label="Информация за нивото"
+          onclick="event.stopPropagation();showInfo(${l.id})">ⓘ</span>
     <h3>${l.name}</h3>
     <p>${l.desc}</p>
     <span class="pill" style="background:${l.color}22;color:${l.color}">
       ${l.ex.length} упражнения · ${fmt(l.work)} мин
     </span>
-  </button>`).join('');
+  </div>`).join('');
+
+function showInfo(id){
+  const l=LEVELS.find(x=>x.id===id), i=INFO[id];
+  $('sheet').innerHTML=`
+    <div class="grab"></div>
+    <h3 style="color:${l.color}">${l.name}</h3>
+    <p class="lead">${i.lead}</p>
+    <div class="sec"><b>Какво тренираш</b><p>${i.what}</p></div>
+    <div class="sec hi"><b>Препоръчително</b><p>${i.days}</p></div>
+    <div class="sec"><b>Кога нататък</b><p>${i.next}</p></div>
+    <div class="sec"><b>Имай предвид</b><p>${i.note}</p></div>
+    <p class="disc">${GENERAL}</p>
+    <button onclick="closeInfo()">Затвори</button>`;
+  $('info').classList.add('on');
+}
+function closeInfo(){$('info').classList.remove('on')}
 
 let curLevel=null, curTier=null, curBlocks=[];
 
