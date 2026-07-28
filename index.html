@@ -270,7 +270,6 @@ const LEVELS=[
  {id:1,name:'Начинаещ',color:'#22c55e',work:240,goal:[14,21],hold:5,
   desc:'Учиш се да намираш и контролираш мускула. Кратки свивания, дълги почивки.',
   ex:[
-   {name:'Загрявка',        cycle:[P.c(3),P.r()],           w:0.35, restAfter:20},
    {name:'Основно свиване', cycle:[P.c(4),P.r()],           w:0.9,  restAfter:25},
    {name:'Бързи импулси',   cycle:[P.c(1),P.r()], fast:true,w:0.6,  restAfter:30},
    {name:'Кратко задържане',cycle:[P.c(2),P.h(4),P.r()],    w:1.1,  restAfter:35},
@@ -280,22 +279,20 @@ const LEVELS=[
  {id:2,name:'Напреднал',color:'#f59e0b',work:360,goal:[28,42],hold:10,
   desc:'По-дълги задържания и по-плътно натоварване. Изгражда сила и издръжливост.',
   ex:[
-   {name:'Загрявка',        cycle:[P.c(3),P.r()],           w:0.3, restAfter:20},
-   {name:'Средно задържане',cycle:[P.c(2),P.h(7),P.r()],    w:1.1, restAfter:35},
-   {name:'Пулсиране',       cycle:[P.c(1),P.r()], fast:true,w:0.6, restAfter:35},
    {name:'Стълба',
     cycles:[[P.c(2),P.h(4),P.r()],[P.c(2),P.h(6),P.r()],[P.c(2),P.h(8),P.r()],
             [P.c(2),P.h(6),P.r()],[P.c(2),P.h(4),P.r()]], w:1.0, restAfter:40},
+   {name:'Средно задържане',cycle:[P.c(2),P.h(7),P.r()],    w:1.1, restAfter:35},
+   {name:'Пулсиране',       cycle:[P.c(1),P.r()], fast:true,w:0.6, restAfter:35},
    {name:'Издръжливост',    cycle:[P.c(2),P.h(10),P.r()],   w:1.2, restAfter:40},
    {name:'Обратен кегел',   cycle:[P.x(3),P.xh(6),P.r()],   w:0.7},
   ]},
  {id:3,name:'Експерт',color:'#ef4444',work:480,goal:[0,0],hold:15,
   desc:'Максимална издръжливост и прецизен контрол. Само след стабилно второ ниво.',
   ex:[
-   {name:'Загрявка',        cycle:[P.c(3),P.r()],           w:0.3, restAfter:20},
+   {name:'Бърза серия',     cycle:[P.c(1),P.r()], fast:true,w:0.6, restAfter:40},
    {name:'Дълго задържане', cycle:[P.c(2),P.h(12),P.r()],   w:1.2, restAfter:45},
    {name:'Асансьор',        cycle:[P.c(2),P.h(5),P.c(2),P.h(5),P.c(2),P.h(5),P.r()], w:1.0, restAfter:50},
-   {name:'Бърза серия',     cycle:[P.c(1),P.r()], fast:true,w:0.6, restAfter:40},
    {name:'Максимална издръжливост',cycle:[P.c(3),P.h(15),P.r()], w:1.2, restAfter:50},
    {name:'Обратен кегел',   cycle:[P.x(3),P.xh(8),P.r()],   w:0.7},
   ]},
@@ -495,7 +492,7 @@ $('levels').innerHTML=LEVELS.map(l=>`
     <h3>${l.name}</h3>
     <p>${l.desc}</p>
     <span class="pill" style="background:${l.color}22;color:${l.color}">
-      ${l.ex.length} упражнения · ${fmt(l.work)} мин · задържане до ${l.hold} сек
+      ${Math.round(l.work/60)} мин
     </span>
   </div>`).join('');
 
