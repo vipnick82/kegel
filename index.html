@@ -285,6 +285,9 @@
    ===================================================================== */
 const C =d=>({t:'c', d});
 const H =d=>({t:'h', d});
+/* Задържане, при което кръгът се изпълва за първите ramp секунди и после
+   стои пълен. Надписът е само ЗАДРЪЖ, а таймерът брои цялото време. */
+const HR=(d,ramp)=>({t:'h', d, ramp:ramp||1});
 const REL=d=>({t:'r', d});
 const X =d=>({t:'x', d});
 const XH=d=>({t:'xh',d});
@@ -337,12 +340,16 @@ const LEVELS=[
    Кратка последователност, независима от нивата. Може да се прави по всяко
    време на деня. Времената са фиксирани и точни:
 
-     част 1   свий 2с + отпусни 2с   x10  =  40с
-     почивка                              =  30с
-     част 2   свий 5с + отпусни 2с   x10  =  70с
-     част 3   свий 0.5с + отпусни 0.5с x10 = 10с
-     -----------------------------------------
-     рутина                                = 150с (2:30)
+     част 1   свий 2с + отпусни 2с        x10  =  40с
+     почивка                                   =  30с
+     част 2   задръж 5с + отпусни 2с      x10  =  70с
+     част 3   свий 0.5с + отпусни 0.5с    x10  =  10с
+     ----------------------------------------------
+     рутина                                     = 150с (2:30)
+
+   Част 2 е ЕДНА фаза от 5 секунди с надпис ЗАДРЪЖ. Кръгът се изпълва
+   докрай през първата секунда и стои пълен останалите четири - свиването
+   е бързо, задържането е дълго.
 
    Част 3 е "приблизително веднъж в секунда" - това е ЦЯЛ цикъл свиване и
    отпускане за една секунда, тоест по половин секунда всяко. Само така
@@ -357,7 +364,7 @@ const ROUTINE={
      ex:{name:'Бавни свивания',  cycle:[C(2),REL(2)],   reps:10}},
     {type:'rest',name:'Почивка',         d:30},
     {type:'ex',  name:'Дълги свивания',  d:70,
-     ex:{name:'Дълги свивания',  cycle:[C(5),REL(2)],   reps:10}},
+     ex:{name:'Дълги свивания',  cycle:[HR(5,1),REL(2)], reps:10}},
     {type:'ex',  name:'Бързи свивания',  d:10,
      ex:{name:'Бързи свивания',  cycle:[C(.5),REL(.5)], reps:10, fast:true}},
   ],
@@ -447,7 +454,7 @@ function sessionFor(blocks){
     if(b.type==='rest'){ q.push({t:'xrest',d:b.d,block:bi}); return; }
     const e=b.ex, cys=cyclesOf(e);
     for(let n=0;n<e.reps;n++)
-      cys.forEach(c=>c.forEach(p=>q.push({t:p.t,d:p.d,block:bi,fast:!!e.fast})));
+      cys.forEach(c=>c.forEach(p=>q.push({t:p.t,d:p.d,ramp:p.ramp,block:bi,fast:!!e.fast})));
   });
   q.forEach(p=>{p.l=labelFor(p)});
   return markRingGroups(q);
@@ -666,7 +673,11 @@ function render(){
   const p=Math.min(elapsed/ph.d,1);
   let g;
   if(ph.t==='c')       g=GMIN+(GMAX-GMIN)*ease(p);
-  else if(ph.t==='h')  g=GMAX-5+7*Math.abs(Math.sin(elapsed*2.4));
+  /* задържане с бързо изпълване: кръгът се разгръща за ph.ramp секунди,
+     после стои пълен и само тупти - надписът през цялото време е ЗАДРЪЖ */
+  else if(ph.t==='h'&&ph.ramp&&elapsed<ph.ramp)
+                       g=GMIN+(GMAX-GMIN)*ease(elapsed/ph.ramp);
+  else if(ph.t==='h')  g=GMAX-5+7*Math.abs(Math.cos((elapsed-(ph.ramp||0))*2.4));
   else if(ph.t==='x')  g=GMIN+(GMAX-GMIN)*p;
   else if(ph.t==='xh') g=GMAX-3+4*Math.sin(elapsed*1.2);
   else if(ph.t==='r')  g=GMAX-(GMAX-GMIN)*ease(p);
