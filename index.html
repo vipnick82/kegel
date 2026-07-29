@@ -68,6 +68,11 @@
     font-size:14px;font-weight:700;color:var(--dim);cursor:pointer;z-index:2}
   .infoBtn:active{transform:scale(.9)}
   .lvl .bar{position:absolute;left:0;top:0;bottom:0;width:4px}
+  /* ежедневната рутина - без цветна лента, за да не се чете като ниво */
+  .lvl.daily{background:linear-gradient(180deg,#141a24,#12151b);
+    border-color:#2c3646;padding-left:20px}
+  .lvl.daily h3::before{content:'';display:inline-block;width:7px;height:7px;
+    border-radius:50%;background:#38bdf8;margin-right:8px;vertical-align:middle}
   .lvl h3{margin:0 0 5px;font-size:18px}
   .lvl p{margin:0;color:var(--dim);font-size:13.5px;line-height:1.5}
   .pill{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.6px;
@@ -187,6 +192,8 @@
     <h1>Kegel Trainer</h1>
     <div class="stats" id="stats"></div>
     <div id="unlock"></div>
+    <div id="daily"></div>
+    <p class="planHead" style="margin:22px 0 10px 2px">Програма по нива</p>
     <div id="levels"></div>
   </section>
 
@@ -325,6 +332,44 @@ const LEVELS=[
    {name:'Обратен кегел',    cycle:[X(2),XH(3),REL(3)],     reps:3, note:'натисни навън 2с · задръж 3с · върни се 3с'},
   ]},
 ];
+
+/* ---------- ЕЖЕДНЕВНА РУТИНА ----------
+   Кратка последователност, независима от нивата. Може да се прави по всяко
+   време на деня. Времената са фиксирани и точни:
+
+     част 1   свий 2с + отпусни 2с   x10  =  40с
+     почивка                              =  30с
+     част 2   свий 5с + отпусни 2с   x10  =  70с
+     част 3   свий 0.5с + отпусни 0.5с x10 = 10с
+     -----------------------------------------
+     рутина                                = 150с (2:30)
+
+   Част 3 е "приблизително веднъж в секунда" - това е ЦЯЛ цикъл свиване и
+   отпускане за една секунда, тоест по половин секунда всяко. Само така
+   сборът дава заявените 2 минути и 30 секунди.
+   Между част 2 и част 3 НЯМА почивка - единствената е след първа част.
+   Приготвянето от 5 секунди идва отгоре и не се брои в рутината.        */
+const ROUTINE={
+  id:0, name:'Ежедневна рутина', color:'#38bdf8', work:150, goal:[0,0],
+  desc:'Кратка последователност за всеки ден, независимо от нивото.',
+  blocks:[
+    {type:'ex',  name:'Бавни свивания',  d:40,
+     ex:{name:'Бавни свивания',  cycle:[C(2),REL(2)],   reps:10}},
+    {type:'rest',name:'Почивка',         d:30},
+    {type:'ex',  name:'Дълги свивания',  d:70,
+     ex:{name:'Дълги свивания',  cycle:[C(5),REL(2)],   reps:10}},
+    {type:'ex',  name:'Бързи свивания',  d:10,
+     ex:{name:'Бързи свивания',  cycle:[C(.5),REL(.5)], reps:10, fast:true}},
+  ],
+};
+
+const ROUTINE_INFO={
+  lead:'Кратка рутина за всеки ден. Не заменя програмата по нива - върви успоредно с нея.',
+  find:'Свий мускула така, сякаш спираш струята на урината. Свиването се усеща в областта между ануса и тестисите. Ако не си сигурен, сложи два пръста там и провери дали мускулът се стяга - трябва да го усетиш как се придърпва навътре, без коремът и седалището да се включват.',
+  what:'Три части без прекъсване между втората и третата: десет бавни свивания по 2 секунди, тридесет секунди почивка, десет по-дълги свивания със задържане 5 секунди, и накрая десет бързи свивания с ритъм около едно в секунда. Общо тридесет свивания за две минути и половина.',
+  when:'Всеки ден, най-добре сутрин - след ставане, докато миеш зъбите или под душа. Целта е около 5 минути дневно общо.',
+  evening:'Вечер може да повториш същата последователност, но легнал по гръб с повдигнат таз. Времената и повторенията са същите - сменя се само позицията. Сутрин плюс вечер прави около 5 минути на ден.',
+};
 
 const SAFETY='Ако усетиш болка, спазъм, парене, натиск в таза или ерекцията стане по-нестабилна след няколко дни, намали нивото или спри временно. Прекомерното стягане без достатъчно отпускане може да влоши проблема.';
 
@@ -496,6 +541,42 @@ $('levels').innerHTML=LEVELS.map(l=>`
       ${Math.round(l.work/60)} мин
     </span>
   </div>`).join('');
+
+/* ---- ежедневна рутина ---- */
+$('daily').innerHTML=`
+  <div class="lvl daily" role="button" tabindex="0" style="--lc:${ROUTINE.color}"
+       onclick="startRoutine()">
+    <span class="infoBtn" role="button" aria-label="Информация за рутината"
+          onclick="event.stopPropagation();showRoutineInfo()">ⓘ</span>
+    <h3>${ROUTINE.name}</h3>
+    <p>${ROUTINE.desc}</p>
+    <span class="pill" style="background:${ROUTINE.color}26;color:${ROUTINE.color};
+          border-color:${ROUTINE.color}4d">Всеки ден · ${fmt(ROUTINE.work)}</span>
+  </div>`;
+
+function startRoutine(){
+  curLevel=ROUTINE;
+  curBlocks=ROUTINE.blocks;
+  document.documentElement.style.setProperty('--accent',ROUTINE.color);
+  startSession();
+}
+
+function showRoutineInfo(){
+  const i=ROUTINE_INFO, done=levelCount(0);
+  $('sheet').innerHTML=`
+    <div class="grab"></div>
+    <h3 style="color:${ROUTINE.color}">${ROUTINE.name}</h3>
+    <p class="lead">${i.lead}</p>
+    <div class="sec hi"><b>Твоят напредък</b><p>${done} дни с рутината</p></div>
+    <div class="sec"><b>Как да намериш мускула</b><p>${i.find}</p></div>
+    <div class="sec"><b>Какво включва</b><p>${i.what}</p></div>
+    <div class="sec"><b>Кога</b><p>${i.when}</p></div>
+    <div class="sec"><b>Вечерен вариант</b><p>${i.evening}</p></div>
+    <div class="sec warn"><b>Внимание</b><p>Без стягане на корем, седалище и бедра. Без задържане на дъха. ${SAFETY}</p></div>
+    <p class="disc">${GENERAL}</p>
+    <button onclick="closeInfo()">Затвори</button>`;
+  $('info').classList.add('on');
+}
 
 function showInfo(id){
   const l=LEVELS.find(x=>x.id===id), i=INFO[id], done=levelCount(id);
